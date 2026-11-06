@@ -1,0 +1,84 @@
+﻿<!-- =====================================================================
+     KVKK / KULLANICI SÖZLEŞMESİ MODAL
+     ASP.NET: Views/Shared/_TermsModal.cshtml (partial)
+     ===================================================================== -->
+<div class="k-modal" id="kvkkModal" aria-hidden="true">
+    <div class="k-dialog" role="dialog" aria-modal="true" aria-labelledby="kvkkTitle">
+        <div class="k-head">
+            <div class="ic"><i class="bi bi-file-earmark-lock2"></i></div>
+            <div>
+                <h3 id="kvkkTitle">KVKK Aydınlatma Metni ve Kullanıcı Sözleşmesi</h3>
+                <p>Son güncelleme: 1 Kasım 2026 · Okuma süresi yaklaşık 4 dakika</p>
+            </div>
+            <button type="button" class="k-close" data-close-kvkk aria-label="Kapat"><i class="bi bi-x-lg"></i></button>
+            <span class="k-progress" id="kvkkProgress"></span>
+        </div>
+
+        <div class="k-body" id="kvkkBody" tabindex="0">
+            <div class="k-meta">
+                <span><i class="bi bi-building"></i> Veri sorumlusu: Mailora Teknoloji A.Ş.</span>
+                <span><i class="bi bi-envelope"></i> kvkk@mailora.com</span>
+            </div>
+
+            <nav class="k-toc" aria-label="İçindekiler">
+                <a href="#k1">Kişisel veriler</a><a href="#k2">Hesap oluşturma</a><a href="#k3">İletişim</a>
+                <a href="#k4">Güvenlik</a><a href="#k5">Kullanım koşulları</a><a href="#k6">Saklama ve haklar</a>
+            </nav>
+
+            <p>Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamında, Mailora e-posta yönetim hizmetini (“Hizmet”) kullanan kişilerin kişisel verilerinin hangi amaçlarla ve nasıl işlendiğini açıklamak ve Hizmet’in kullanım koşullarını belirlemek amacıyla hazırlanmıştır. Hesap oluşturarak bu metni okuduğunuzu ve kabul ettiğinizi beyan etmiş olursunuz.</p>
+
+            <h4 id="k1"><span>1</span> Kişisel Verilerin İşlenmesi</h4>
+            <p>Hizmet kapsamında aşağıdaki kişisel verileriniz, yalnızca hizmetin sunulması için gerekli olduğu ölçüde ve hukuka uygun şekilde işlenir:</p>
+            <ul>
+                <li><b>Kimlik bilgileri:</b> ad, soyad ve kullanıcı adı</li>
+                <li><b>İletişim bilgileri:</b> e-posta adresi ve isteğe bağlı olarak telefon numarası</li>
+                <li><b>İşlem güvenliği bilgileri:</b> şifrenin geri döndürülemez özet (hash) değeri, oturum ve giriş kayıtları, IP adresi</li>
+                <li><b>Kullanım bilgileri:</b> tercih ayarları, bildirim seçimleri ve hizmet içi etkileşimler</li>
+            </ul>
+            <p>Kişisel verileriniz; sözleşmenin kurulması ve ifası, hukuki yükümlülüklerin yerine getirilmesi ve temel hak ve özgürlüklerinize zarar vermemek kaydıyla meşru menfaatlerimiz hukuki sebeplerine dayanılarak işlenir.</p>
+
+            <h4 id="k2"><span>2</span> Hesap Oluşturma Süreci</h4>
+            <p>Kayıt sırasında verdiğiniz bilgilerin doğru ve güncel olması sizin sorumluluğunuzdadır. Hesabınız oluşturulduktan sonra belirttiğiniz e-posta adresine bir doğrulama bağlantısı gönderilir. E-posta adresiniz doğrulanana kadar bazı özellikler sınırlı olabilir.</p>
+            <p>Her kullanıcı adı benzersizdir ve başka bir kişiyi taklit edecek, yanıltıcı ya da hak ihlali oluşturan kullanıcı adları kullanılamaz. 18 yaşından küçük kullanıcıların hesap oluşturabilmesi için yasal temsilcilerinin onayı gereklidir.</p>
+
+            <h4 id="k3"><span>3</span> İletişim Bilgileri</h4>
+            <p>E-posta adresiniz; hesap doğrulama, şifre sıfırlama, güvenlik uyarıları ve hizmete ilişkin zorunlu bilgilendirmeler için kullanılır. Kampanya ve bülten gibi ticari elektronik iletiler yalnızca ayrıca onay vermeniz halinde gönderilir ve bu onayı dilediğiniz zaman Profil &gt; Hesap Tercihleri bölümünden geri çekebilirsiniz.</p>
+            <p>Kişisel verilerinizle ilgili her türlü talebiniz için <b>kvkk@mailora.com</b> adresine yazabilirsiniz. Başvurularınız en geç 30 gün içinde sonuçlandırılır.</p>
+
+            <h4 id="k4"><span>4</span> Güvenlik</h4>
+            <p>Verilerinizin güvenliği için endüstri standardı teknik ve idari tedbirler uygulanır:</p>
+            <ul>
+                <li>Tüm veri iletimi TLS ile şifrelenir.</li>
+                <li>Şifreler hiçbir zaman açık metin olarak saklanmaz; yalnızca tuzlanmış özet değerleri tutulur.</li>
+                <li>Şüpheli giriş denemelerinde hesap geçici olarak kilitlenir ve size bildirim gönderilir.</li>
+                <li>İki adımlı doğrulama ile hesabınıza ek bir koruma katmanı ekleyebilirsiniz.</li>
+            </ul>
+            <p>Şifrenizin gizliliğini korumak ve hesabınızda yetkisiz bir erişim fark ettiğinizde bizi derhal bilgilendirmek sizin sorumluluğunuzdadır.</p>
+
+            <h4 id="k5"><span>5</span> Kullanım Koşulları</h4>
+            <p>Hizmet’i kullanırken yürürlükteki mevzuata ve bu sözleşmeye uymayı kabul edersiniz. Aşağıdaki kullanımlar kesinlikle yasaktır:</p>
+            <ul>
+                <li>İstenmeyen toplu e-posta (spam) gönderimi veya oltalama (phishing) girişimleri</li>
+                <li>Zararlı yazılım, virüs veya hukuka aykırı içerik paylaşımı</li>
+                <li>Başkalarının hesaplarına yetkisiz erişim sağlamaya çalışmak</li>
+                <li>Hizmet’in altyapısını aşırı yükleyecek otomatik işlemler yapmak</li>
+            </ul>
+            <p>Bu koşulların ihlali halinde Mailora, önceden bildirimde bulunarak veya acil durumlarda bildirimsiz olarak hesabınızı askıya alma ya da kapatma hakkını saklı tutar.</p>
+
+            <h4 id="k6"><span>6</span> Veri Saklama ve Kullanıcı Hakları</h4>
+            <p>Kişisel verileriniz, hesabınız aktif olduğu sürece ve ilgili mevzuatta öngörülen saklama süreleri boyunca muhafaza edilir. Hesabınızı kapattığınızda verileriniz yasal saklama yükümlülükleri saklı kalmak kaydıyla 30 gün içinde silinir veya anonim hale getirilir.</p>
+            <p>KVKK’nın 11. maddesi uyarınca; kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını öğrenme, eksik veya yanlış işlenmişse düzeltilmesini, silinmesini ya da yok edilmesini isteme, işlemeye itiraz etme ve kanuna aykırı işleme nedeniyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz.</p>
+            <p>Bu sözleşmede yapılacak önemli değişiklikler, yürürlüğe girmeden önce e-posta yoluyla size bildirilir.</p>
+
+            <div class="k-end"><i class="bi bi-check2-circle"></i> Metnin sonuna ulaştınız.</div>
+        </div>
+
+        <div class="k-foot">
+            <span class="read-hint" id="readHint"><i class="bi bi-arrow-down-circle"></i> Metni sonuna kadar kaydırabilirsiniz</span>
+            <button type="button" class="btn-ghost" data-close-kvkk>Kapat</button>
+            <button type="button" class="btn-primary-x" id="kvkkAccept"><i class="bi bi-check2"></i> Okudum, Kabul Ediyorum</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>

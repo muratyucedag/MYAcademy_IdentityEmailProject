@@ -1,0 +1,300 @@
+﻿<script>
+    /* ======================================================================
+       MAILORA — REGISTER (yalnızca frontend doğrulama ve simülasyon)
+       Gerçek uygulamada: AccountController.Register (POST)
+       → UserManager.CreateAsync(user, model.Password) → e-posta doğrulama
+       ====================================================================== */
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+        const EMAIL_RE = /^[^\s@@<>()[\],;:"]+@@[^\s@@<>()[\],;:"]+\.[a-z]{2,}$/i;
+    const TAKEN_USERNAMES = ['admin', 'mailora', 'destek', 'ahmetyilmaz', 'root', 'info'];  // temsili: sunucu kontrolü simülasyonu
+
+    /* Şifre kuralları — ASP.NET Core Identity PasswordOptions ile uyumlu */
+    const PW_RULES = [
+      { id: 'len',     text: 'En az 8 karakter',       test: v => v.length >= 8 },
+      { id: 'upper',   text: 'En az bir büyük harf',   test: v => /[A-ZÇĞİÖŞÜ]/.test(v) },
+      { id: 'lower',   text: 'En az bir küçük harf',   test: v => /[a-zçğıöşü]/.test(v) },
+      { id: 'digit',   text: 'En az bir rakam',        test: v => /\d/.test(v) },
+      { id: 'special', text: 'En az bir özel karakter', test: v => /[^A-Za-z0-9ÇĞİÖŞÜçğıöşü\s]/.test(v) },
+      { id: 'match',   text: 'Şifreler eşleşiyor',     test: (v, c) => !!v && v === c }
+    ];
+    const LEVELS = [
+      { t: '—', c: 'var(--muted)' }, { t: 'Zayıf', c: '#C2476B' }, { t: 'Orta', c: '#C8774A' },
+      { t: 'İyi', c: 'var(--accent-dark)' }, { t: 'Güçlü', c: '#3E9A77' }
+    ];
+
+    const form = $('#registerForm');
+    const val = id => $('#' + id).value;
+    const touched = new Set();
+    let userCheck = { value: null, state: 'idle' };   // idle | checking | available | taken
+    let userTimer = null;
+
+    /* ---------- Toast ---------- */
+    function toast(title, text = '', type = 'info', icon = 'bi-info-circle') {
+      const el = document.createElement('div');
+      el.className = `m-toast ${type}`;
+      el.innerHTML = `<span class="ti"><i class="bi ${icon}"></i></span><span><b>${title}</b>${text}</span>`;
+      $('#toastStack').appendChild(el);
+      setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, 3600);
+    }
+
+    /* ---------- Alan doğrulama ---------- */
+    function validate(key) {
+      const v = val(key).trim();
+      switch (key) {
+        case 'firstName':
+        case 'lastName': {
+          const label = key === 'firstName' ? 'Ad' : 'Soyad';
+          if (!v) return `${label} alanı zorunludur.`;
+          if (v.length < 2) return `${label} en az 2 karakter olmalıdır.`;
+          if (!/^[\p{L}\s'-]+$/u.test(v)) return `${label} yalnızca harflerden oluşmalıdır.`;
+          return '';
+        }
+        case 'userName':
+          if (!v) return 'Kullanıcı adı zorunludur.';
+          if (v.length < 3) return 'Kullanıcı adı en az 3 karakter olmalıdır.';
+          if (!/^[a-zA-Z0-9._-]+$/.test(v)) return 'Türkçe karakter, boşluk veya özel simge kullanılamaz.';
+          if (/^[._-]|[._-]$/.test(v)) return 'Kullanıcı adı nokta, tire veya alt çizgi ile başlayıp bitemez.';
+          if (userCheck.value === v.toLowerCase() && userCheck.state === 'taken') return 'Bu kullanıcı adı zaten alınmış.';
+          return '';
+        case 'email':
+          if (!v) return 'Email alanı zorunludur.';
+          if (!EMAIL_RE.test(v)) return 'Geçerli bir email adresi girin (ör. ad@ornek.com).';
+          return '';
+        case 'password': {
+          const raw = val('password');
+          if (!raw) return 'Şifre alanı zorunludur.';
+          const miss = PW_RULES.slice(0, 5).filter(r => !r.test(raw));
+          if (miss.length) return `Şifre şu kuralları karşılamalı: ${miss.map(r => r.text.toLocaleLowerCase('tr-TR')).join(', ')}.`;
+          return '';
+        }
+        case 'confirmPassword': {
+          const raw = val('confirmPassword');
+          if (!raw) return 'Şifre tekrarı zorunludur.';
+          if (raw !== val('password')) return 'Şifreler eşleşmiyor.';
+          return '';
+        }
+      }
+      return '';
+    }
+
+    const SUCCESS_MSG = { userName: 'Bu kullanıcı adı kullanılabilir.', confirmPassword: 'Şifreler eşleşiyor.' };
+
+    function paint(key, { shake = false } = {}) {
+      const field = $(`[data-field="${key}"]`), msg = $('.msg', field);
+      const err = validate(key);
+      const checking = key === 'userName' && !err && userCheck.state === 'checking';
+      field.classList.toggle('is-checking', checking);
+      field.classList.toggle('is-invalid', !!err);
+      field.classList.toggle('is-valid', !err && !checking);
+      msg.textContent = err || (checking ? '' : (SUCCESS_MSG[key] || ''));
+      $('#' + key).setAttribute('aria-invalid', err ? 'true' : 'false');
+      if (err && shake) { field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); }
+      return !err;
+    }
+
+    /* Kullanıcı adı müsaitlik kontrolü (sunucu çağrısı simülasyonu) */
+    function checkUserName() {
+      const v = val('userName').trim();
+      clearTimeout(userTimer);
+      const basicErr = (() => { const s = userCheck; userCheck = { value: null, state: 'idle' }; const e = validate('userName'); userCheck = s; return e; })();
+      if (basicErr) { userCheck = { value: null, state: 'idle' }; if (touched.has('userName')) paint('userName'); return; }
+      userCheck = { value: v.toLowerCase(), state: 'checking' };
+      if (touched.has('userName')) paint('userName');
+      userTimer = setTimeout(() => {
+        if (userCheck.value !== v.toLowerCase()) return;
+        userCheck.state = TAKEN_USERNAMES.includes(v.toLowerCase()) ? 'taken' : 'available';
+        touched.add('userName');
+        paint('userName');
+      }, 600);
+    }
+
+    /* ---------- Şifre gücü ---------- */
+    function renderRules() {
+      $('#rules').innerHTML = PW_RULES.map(r => `<li data-rule="${r.id}"><i class="bi bi-circle"></i>${r.text}</li>`).join('');
+    }
+    function updatePasswordUi() {
+      const v = val('password'), c = val('confirmPassword');
+      PW_RULES.forEach(r => {
+        const li = $(`[data-rule="${r.id}"]`), ok = r.test(v, c);
+        li.classList.toggle('ok', ok);
+        $('i', li).className = ok ? 'bi bi-check-circle-fill' : 'bi bi-circle';
+      });
+      const passed = PW_RULES.slice(0, 5).filter(r => r.test(v)).length;
+      const level = !v ? 0 : passed <= 2 ? 1 : passed === 3 ? 2 : passed === 4 ? 3 : 4;
+      $('#strength').dataset.level = level;
+      $('#strengthText').textContent = LEVELS[level].t;
+      $('#strengthText').style.color = LEVELS[level].c;
+    }
+
+    /* ---------- Olaylar ---------- */
+    const KEYS = ['firstName', 'lastName', 'userName', 'email', 'password', 'confirmPassword'];
+
+    KEYS.forEach(key => {
+      const el = $('#' + key);
+      el.addEventListener('input', () => {
+        if (key === 'userName') { el.value = el.value.replace(/\s/g, ''); checkUserName(); }
+        if (key === 'password' || key === 'confirmPassword') updatePasswordUi();
+        if (touched.has(key)) paint(key);
+        if (key === 'password' && touched.has('confirmPassword')) paint('confirmPassword');
+      });
+      el.addEventListener('blur', () => {
+        if (!el.value && !touched.has(key)) return;       // boş alandan geçişte hemen hata gösterme
+        touched.add(key);
+        paint(key);
+      });
+      if (el.type === 'password') {
+        const caps = $('.caps', el.closest('.field'));
+        el.addEventListener('keyup', e => caps.classList.toggle('show', !!(e.getModifierState && e.getModifierState('CapsLock'))));
+        el.addEventListener('blur', () => caps.classList.remove('show'));
+      }
+    });
+
+    // Şifre göster / gizle
+    $$('[data-eye]').forEach(btn => btn.addEventListener('click', () => {
+      const input = $('#' + btn.dataset.eye), show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      $('i', btn).className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+      btn.title = show ? 'Şifreyi gizle' : 'Şifreyi göster';
+      btn.setAttribute('aria-label', btn.title);
+      input.focus({ preventScroll: true });
+      const len = input.value.length; try { input.setSelectionRange(len, len); } catch (e) { /* yok say */ }
+    }));
+
+    // KVKK onay kutusu
+    const terms = $('#acceptTerms');
+    function paintTerms(showError) {
+      const box = $('#termsBox'), msg = $('#termsMsg');
+      box.classList.toggle('is-valid', terms.checked);
+      box.classList.toggle('is-invalid', !terms.checked && showError);
+      msg.textContent = !terms.checked && showError ? 'Devam etmek için KVKK ve kullanıcı sözleşmesini kabul etmelisiniz.' : '';
+      if (!terms.checked && showError) { box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+    }
+    terms.addEventListener('change', () => paintTerms(false));
+
+    // Giriş Yap bağlantısı (Login ayrı bir sayfa olacak)
+    $$('[data-login-link]').forEach(a => a.addEventListener('click', e => {
+      e.preventDefault();
+      toast('Giriş sayfası', 'Login ekranı ayrı bir sayfa olarak hazırlanacak.', 'info', 'bi-box-arrow-in-right');
+    }));
+
+    /* ---------- KVKK modal ---------- */
+    const modal = $('#kvkkModal'), body = $('#kvkkBody');
+    let lastFocus = null;
+
+    function openKvkk() {
+      lastFocus = document.activeElement;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open-lock');
+      body.scrollTop = 0; updateReadProgress();
+      setTimeout(() => $('.k-close', modal).focus(), 60);
+    }
+    function closeKvkk() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open-lock');
+      if (lastFocus) lastFocus.focus({ preventScroll: true });
+    }
+    function updateReadProgress() {
+      const max = body.scrollHeight - body.clientHeight;
+      const pct = max <= 0 ? 100 : Math.min(100, body.scrollTop / max * 100);
+      $('#kvkkProgress').style.width = pct + '%';
+      const done = pct > 97, hint = $('#readHint');
+      hint.classList.toggle('done', done);
+      hint.innerHTML = done ? '<i class="bi bi-check2-circle"></i> Metnin tamamını okudunuz' : '<i class="bi bi-arrow-down-circle"></i> Metni sonuna kadar kaydırabilirsiniz';
+    }
+
+    $$('[data-open-kvkk]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openKvkk(); }));
+    $$('[data-close-kvkk]').forEach(b => b.addEventListener('click', closeKvkk));
+    modal.addEventListener('click', e => { if (e.target === modal) closeKvkk(); });
+    body.addEventListener('scroll', updateReadProgress, { passive: true });
+    $$('.k-toc a', modal).forEach(a => a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = $(a.getAttribute('href'), body);
+      body.scrollTo({ top: target.offsetTop - body.offsetTop - 8, behavior: 'smooth' });
+    }));
+    $('#kvkkAccept').addEventListener('click', () => {
+      terms.checked = true;
+      paintTerms(false);
+      closeKvkk();
+      toast('Sözleşme kabul edildi', 'KVKK ve kullanıcı sözleşmesi onaylandı.', 'success', 'bi-check2-circle');
+    });
+    document.addEventListener('keydown', e => {
+      if (!modal.classList.contains('open')) return;
+      if (e.key === 'Escape') { closeKvkk(); return; }
+      if (e.key === 'Tab') {                                   // odak modal içinde kalsın
+        const f = $$('button, a[href], [tabindex="0"]', modal).filter(x => x.offsetParent !== null);
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+
+    /* ---------- Gönderim ---------- */
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      if (userCheck.state === 'checking') { setTimeout(() => form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')), 650); return; }
+
+      KEYS.forEach(k => touched.add(k));
+      const results = KEYS.map(k => paint(k, { shake: true }));
+      paintTerms(true);
+      const firstBad = KEYS.find((k, i) => !results[i]);
+
+      if (firstBad || !terms.checked) {
+        const target = firstBad ? $('#' + firstBad) : terms;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const n = results.filter(r => !r).length + (terms.checked ? 0 : 1);
+        toast('Formu kontrol edin', `${n} alanda düzeltme gerekiyor.`, 'error', 'bi-exclamation-circle');
+        return;
+      }
+
+      const btn = $('#submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-sm"></span><span class="lbl">Hesabınız oluşturuluyor…</span>';
+
+      // Simülasyon — şifre hiçbir yerde saklanmaz
+      const user = { firstName: val('firstName').trim(), email: val('email').trim() };
+      setTimeout(() => {
+        form.reset();
+        showSuccess(user);
+        toast('Hesabınız oluşturuldu! 🎉', 'Doğrulama e-postası gönderildi.', 'success', 'bi-check2-circle');
+      }, 1400);
+    });
+
+    function showSuccess(user) {
+      const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      $('#registerView').innerHTML = `
+        <div class="success-view">
+          <div class="success-ic"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M13 25l7 7 15-16"/></svg></div>
+          <h2>Hoş geldiniz, ${esc(user.firstName)}!</h2>
+          <p>Mailora hesabınız başarıyla oluşturuldu. <b>${esc(user.email)}</b> adresine bir doğrulama bağlantısı gönderdik.</p>
+          <ol class="success-steps">
+            <li><span>1</span> Gelen kutunuzdaki doğrulama e-postasını açın</li>
+            <li><span>2</span> “Hesabımı Doğrula” bağlantısına tıklayın</li>
+            <li><span>3</span> Giriş yaparak Mailora’yı kullanmaya başlayın</li>
+          </ol>
+          <button type="button" class="btn-primary-x" style="margin-top:0" data-login-link><span class="lbl">Giriş Yap</span><i class="bi bi-arrow-right"></i></button>
+          <button type="button" class="btn-ghost" style="width:100%;margin-top:10px" id="resendBtn"><i class="bi bi-arrow-repeat"></i> Doğrulama e-postasını tekrar gönder</button>
+        </div>`;
+      $('[data-login-link]', $('#registerView')).addEventListener('click', () =>
+        toast('Giriş sayfası', 'Login ekranı ayrı bir sayfa olarak hazırlanacak.', 'info', 'bi-box-arrow-in-right'));
+      $('#resendBtn').addEventListener('click', e => {
+        const b = e.currentTarget;
+        b.disabled = true;
+        toast('E-posta gönderildi', `${user.email} adresini kontrol edin.`, 'success', 'bi-envelope-check');
+        let s = 30;
+        const tick = setInterval(() => {
+          b.innerHTML = `<i class="bi bi-clock"></i> Tekrar göndermek için ${s--} sn`;
+          if (s < 0) { clearInterval(tick); b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-repeat"></i> Doğrulama e-postasını tekrar gönder'; }
+        }, 1000);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ---------- Başlangıç ---------- */
+    renderRules();
+    updatePasswordUi();
+</script>

@@ -1,0 +1,140 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+
+    @await Component.InvokeAsync("_RegisterStyleComponentPartial")
+
+
+<body>
+
+    <div class="auth-bg" aria-hidden="true"><span class="g1"></span><span class="g2"></span><span class="g3"></span></div>
+
+    <!-- =====================================================================
+         REGISTER PAGE
+         ASP.NET Core MVC: Views/Account/Register.cshtml (Layout = "_AuthLayout")
+         Form → asp-controller="Account" asp-action="Register" method="post"
+         Model → RegisterViewModel (FirstName, LastName, UserName, Email, Password, ConfirmPassword, AcceptTerms)
+         ===================================================================== -->
+    <main class="auth-page">
+        <div class="auth-card">
+
+            @await Component.InvokeAsync("_RegisterBrandComponentPartial")
+
+            <!-- Sağ: kayıt formu -->
+            <section class="auth-form-wrap" id="formWrap">
+                <div id="registerView">
+                    <div class="form-head">
+                        <h1>Kayıt Ol</h1>
+                        <p>Mailora hesabınızı oluşturun ve modern e-posta deneyimine başlayın.</p>
+                        <!-- ASP.NET: asp-controller="Account" asp-action="Login" -->
+                        <div class="switch-link">Hesabınız zaten var mı? <a href="#" data-login-link>Giriş Yap</a></div>
+                    </div>
+
+                    <form id="registerForm" novalidate autocomplete="on">
+
+                        <div class="form-grid">
+
+                            <div class="field" data-field="firstName">
+                                <label for="firstName">Ad <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-person lead"></i>
+                                    <input class="a-input" id="firstName" name="FirstName" type="text" placeholder="Adınız" autocomplete="given-name" maxlength="50" required>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                </div>
+                                <div class="msg" aria-live="polite"></div>
+                            </div>
+
+                            <div class="field" data-field="lastName">
+                                <label for="lastName">Soyad <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-person lead"></i>
+                                    <input class="a-input" id="lastName" name="LastName" type="text" placeholder="Soyadınız" autocomplete="family-name" maxlength="50" required>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                </div>
+                                <div class="msg" aria-live="polite"></div>
+                            </div>
+
+                            <div class="field span-2" data-field="userName">
+                                <label for="userName">Kullanıcı Adı <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-at lead"></i>
+                                    <input class="a-input" id="userName" name="UserName" type="text" placeholder="ornek: ahmetyilmaz" autocomplete="username" maxlength="30" spellcheck="false" autocapitalize="none" required>
+                                    <span class="state spin spinner-sm"></span>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                </div>
+                                <div class="hint">3–30 karakter; harf, rakam ve . _ - kullanılabilir.</div>
+                                <div class="msg" aria-live="polite"></div>
+                            </div>
+
+                            <div class="field span-2" data-field="email">
+                                <label for="email">Email <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-envelope lead"></i>
+                                    <input class="a-input" id="email" name="Email" type="email" placeholder="ad.soyad@ornek.com" autocomplete="email" spellcheck="false" autocapitalize="none" required>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                </div>
+                                <div class="msg" aria-live="polite"></div>
+                            </div>
+
+                            <div class="field span-2" data-field="password">
+                                <label for="password">Şifre <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-lock lead"></i>
+                                    <input class="a-input has-eye" id="password" name="Password" type="password" placeholder="Güçlü bir şifre belirleyin" autocomplete="new-password" required>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                    <button type="button" class="eye-btn" data-eye="password" aria-label="Şifreyi göster" title="Şifreyi göster"><i class="bi bi-eye"></i></button>
+                                </div>
+                                <div class="caps"><i class="bi bi-capslock"></i> Caps Lock açık</div>
+                                <div class="msg" aria-live="polite"></div>
+                                <div class="pw-box">
+                                    <div class="strength" id="strength" data-level="0"><span></span><span></span><span></span><span></span></div>
+                                    <div class="strength-label"><span>Şifre gücü</span><b id="strengthText">—</b></div>
+                                    <ul class="rules" id="rules" aria-label="Şifre kuralları"></ul>
+                                </div>
+                            </div>
+
+                            <div class="field span-2" data-field="confirmPassword">
+                                <label for="confirmPassword">Şifre Tekrar <span class="req">*</span></label>
+                                <div class="input-wrap">
+                                    <i class="bi bi-shield-lock lead"></i>
+                                    <input class="a-input has-eye" id="confirmPassword" name="ConfirmPassword" type="password" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" required>
+                                    <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
+                                    <button type="button" class="eye-btn" data-eye="confirmPassword" aria-label="Şifreyi göster" title="Şifreyi göster"><i class="bi bi-eye"></i></button>
+                                </div>
+                                <div class="caps"><i class="bi bi-capslock"></i> Caps Lock açık</div>
+                                <div class="msg" aria-live="polite"></div>
+                            </div>
+
+                            <div class="span-2">
+                                <div class="terms" id="termsBox">
+                                    <input type="checkbox" class="m-check" id="acceptTerms" name="AcceptTerms" aria-describedby="termsMsg">
+                                    <label for="acceptTerms">
+                                        <button type="button" class="linkish" data-open-kvkk>KVKK ve kullanıcı sözleşmesini</button> okudum, kabul ediyorum.
+                                    </label>
+                                </div>
+                                <div class="terms-msg" id="termsMsg" aria-live="polite"></div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary-x" id="submitBtn">
+                            <span class="lbl">Hesap Oluştur</span><i class="bi bi-arrow-right"></i>
+                        </button>
+
+                        <div class="secure-note"><i class="bi bi-shield-check"></i> Bilgileriniz şifrelenerek güvenle saklanır.</div>
+                        <div class="form-foot">Hesabınız zaten var mı? <a href="#" data-login-link>Giriş Yap</a></div>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    @await Component.InvokeAsync("_RegisterTermsComponentPartial")
+
+
+    @await Component.InvokeAsync("_RegisterScriptComponentPartial")
+
+</body>
+</html>
