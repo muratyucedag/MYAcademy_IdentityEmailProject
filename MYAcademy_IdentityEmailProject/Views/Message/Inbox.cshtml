@@ -1,0 +1,30 @@
+﻿@model List<MYAcademy_IdentityEmailProject.Entities.Message>
+
+@{
+    Layout = null;
+}
+
+<link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<div class="container">
+    <br /><br />
+    <table class="table table-bordered">
+        <tr>
+            <th>#</th>
+            <th>Gönderici</th>
+            <th>Konu</th>
+            <th>Tarih</th>
+            <th>Mesajı Aç</th>
+        </tr>
+        @foreach(var item in Model)
+        {
+            <tr>
+                <td>@item.MessageId</td>
+                <td>@item.SenderEmail</td>
+                <td>@item.Subject</td>
+                <td>@item.SendDate</td>
+                <td><a href="#" class="btn btn-success">Mesajı Aç</a></td>
+            </tr>
+        }
+    </table>
+</div>

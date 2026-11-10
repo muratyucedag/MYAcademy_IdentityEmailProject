@@ -1,4 +1,7 @@
-﻿@{
+﻿@model UserRegisterViewModel
+
+
+@{
     Layout = null;
 }
 
@@ -33,7 +36,7 @@
                         <div class="switch-link">Hesabınız zaten var mı? <a href="#" data-login-link>Giriş Yap</a></div>
                     </div>
 
-                    <form id="registerForm" novalidate autocomplete="on">
+                    <form method="post">
 
                         <div class="form-grid">
 
@@ -41,7 +44,7 @@
                                 <label for="firstName">Ad <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-person lead"></i>
-                                    <input class="a-input" id="firstName" name="FirstName" type="text" placeholder="Adınız" autocomplete="given-name" maxlength="50" required>
+                                    <input class="a-input" id="firstName" asp-for="Name" type="text" placeholder="Adınız" autocomplete="given-name" maxlength="50" required>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                 </div>
                                 <div class="msg" aria-live="polite"></div>
@@ -51,7 +54,7 @@
                                 <label for="lastName">Soyad <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-person lead"></i>
-                                    <input class="a-input" id="lastName" name="LastName" type="text" placeholder="Soyadınız" autocomplete="family-name" maxlength="50" required>
+                                    <input class="a-input" id="lastName" asp-for="Surname" type="text" placeholder="Soyadınız" autocomplete="family-name" maxlength="50" required>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                 </div>
                                 <div class="msg" aria-live="polite"></div>
@@ -61,7 +64,7 @@
                                 <label for="userName">Kullanıcı Adı <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-at lead"></i>
-                                    <input class="a-input" id="userName" name="UserName" type="text" placeholder="ornek: ahmetyilmaz" autocomplete="username" maxlength="30" spellcheck="false" autocapitalize="none" required>
+                                    <input class="a-input" id="userName" asp-for="Username" type="text" placeholder="ornek: ahmetyilmaz" autocomplete="username" maxlength="30" spellcheck="false" autocapitalize="none" required>
                                     <span class="state spin spinner-sm"></span>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                 </div>
@@ -73,7 +76,7 @@
                                 <label for="email">Email <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-envelope lead"></i>
-                                    <input class="a-input" id="email" name="Email" type="email" placeholder="ad.soyad@ornek.com" autocomplete="email" spellcheck="false" autocapitalize="none" required>
+                                    <input class="a-input" id="email" asp-for="Email" type="email" placeholder="ad.soyad@ornek.com" autocomplete="email" spellcheck="false" autocapitalize="none" required>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                 </div>
                                 <div class="msg" aria-live="polite"></div>
@@ -83,7 +86,7 @@
                                 <label for="password">Şifre <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-lock lead"></i>
-                                    <input class="a-input has-eye" id="password" name="Password" type="password" placeholder="Güçlü bir şifre belirleyin" autocomplete="new-password" required>
+                                    <input class="a-input has-eye" id="password" asp-for="Password" type="password" placeholder="Güçlü bir şifre belirleyin" autocomplete="new-password" required>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                     <button type="button" class="eye-btn" data-eye="password" aria-label="Şifreyi göster" title="Şifreyi göster"><i class="bi bi-eye"></i></button>
                                 </div>
@@ -100,7 +103,7 @@
                                 <label for="confirmPassword">Şifre Tekrar <span class="req">*</span></label>
                                 <div class="input-wrap">
                                     <i class="bi bi-shield-lock lead"></i>
-                                    <input class="a-input has-eye" id="confirmPassword" name="ConfirmPassword" type="password" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" required>
+                                    <input class="a-input has-eye" id="confirmPassword" asp-for="PasswordConfirm" type="password" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" required>
                                     <i class="bi bi-check-circle-fill state ok"></i><i class="bi bi-exclamation-circle-fill state err"></i>
                                     <button type="button" class="eye-btn" data-eye="confirmPassword" aria-label="Şifreyi göster" title="Şifreyi göster"><i class="bi bi-eye"></i></button>
                                 </div>
