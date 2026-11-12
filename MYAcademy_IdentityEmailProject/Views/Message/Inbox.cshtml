@@ -1,30 +1,486 @@
 ﻿@model List<MYAcademy_IdentityEmailProject.Entities.Message>
-
+@using System.Globalization
+@using System.Net
+@using System.Security.Claims
+@using System.Text.RegularExpressions
 @{
-    Layout = null;
+    ViewData["Title"] = "Gelen Kutusu";
+    ViewData["ActiveMenu"] = "inbox";          // Sidebar'daki data-page="inbox" / data-menu="inbox" linkini aktif yapar
+    Layout = "~/Views/MessageLayout/Index.cshtml";
+
+    var messages = (Model ?? new List<MYAcademy_IdentityEmailProject.Entities.Message>())
+                   .OrderByDescending(m => m.SendDate)
+                   .ToList();
+    var unreadCount = messages.Count(m => !m.IsRead);
+    var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "";
+}
+@functions {
+    static readonly CultureInfo Tr = new("tr-TR");
+    static readonly string[] AvatarColors = { "av-lav", "av-blue", "av-mint", "av-rose", "av-peach", "av-sun" };
+
+    static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Take(2).Select(p => p[0])).ToUpper(Tr);
+    }
+
+    // Aynı gönderen her zaman aynı renkte görünür
+    static string AvatarColor(string? key)
+    {
+        var h = 0;
+        foreach (var c in key ?? "") h = (h * 31 + c) & 0x7fffffff;
+        return AvatarColors[h % AvatarColors.Length];
+    }
+
+    // HTML içerikten tek satırlık düz metin özet
+    static string Snippet(string? html, int max = 140)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return "";
+        var text = WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " "));
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+        return text.Length > max ? text[..max].TrimEnd() + "…" : text;
+    }
+
+    static string LabelClass(string? label) => label switch
+    {
+        "İş" => "tag-is",
+        "Kişisel" => "tag-kisisel",
+        "Fatura" => "tag-fatura",
+        _ => "tag-sistem"
+    };
+
+    // Bugün → 10:42 · Dün → Dün · Bu yıl → 4 Kas · Eski → 12.03.2025
+    static string ShortTime(DateTime d)
+    {
+        var today = DateTime.Today;
+        if (d.Date == today) return d.ToString("HH:mm", Tr);
+        if (d.Date == today.AddDays(-1)) return "Dün";
+        if (d.Year == today.Year) return d.ToString("d MMM", Tr);
+        return d.ToString("dd.MM.yyyy", Tr);
+    }
 }
 
-<link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+@Html.AntiForgeryToken()
 
-<div class="container">
-    <br /><br />
-    <table class="table table-bordered">
-        <tr>
-            <th>#</th>
-            <th>Gönderici</th>
-            <th>Konu</th>
-            <th>Tarih</th>
-            <th>Mesajı Aç</th>
-        </tr>
-        @foreach(var item in Model)
-        {
-            <tr>
-                <td>@item.MessageId</td>
-                <td>@item.SenderEmail</td>
-                <td>@item.Subject</td>
-                <td>@item.SendDate</td>
-                <td><a href="#" class="btn btn-success">Mesajı Aç</a></td>
-            </tr>
-        }
-    </table>
-</div>
+<section class="inbox" id="inbox">
+
+    <div class="panel list-panel">
+
+        <!-- Başlık + arama + filtreler -->
+        <div class="list-head">
+            <div class="list-title">
+                <div>
+                    <h1>Gelen Kutusu</h1>
+                    <div class="sub" id="inboxSub" data-email="@userEmail">@messages.Count mesaj · @userEmail</div>
+                </div>
+                <span class="count-pill" id="unreadPill">@unreadCount okunmamış</span>
+            </div>
+
+            <div class="list-tools">
+                <div class="list-search" id="listSearchWrap">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="listSearch" placeholder="Gönderen, konu veya içerik ara" autocomplete="off">
+                    <button class="clear" id="listSearchClear" type="button" aria-label="Temizle"><i class="bi bi-x-circle-fill"></i></button>
+                </div>
+                <div class="filter-chips" id="filterChips"></div>
+            </div>
+        </div>
+
+        <!-- Toplu işlemler -->
+        <div class="bulk-bar">
+            <input type="checkbox" class="m-check" id="checkAll" aria-label="Tümünü seç">
+            <span class="sel-info" id="selInfo">Tümünü seç</span>
+            <span class="spacer"></span>
+            <button type="button" class="tool-btn" id="bulkRead" title="Okundu olarak işaretle" disabled><i class="bi bi-envelope-open"></i></button>
+            <button type="button" class="tool-btn" id="bulkUnread" title="Okunmadı olarak işaretle" disabled><i class="bi bi-envelope"></i></button>
+            <button type="button" class="tool-btn" id="bulkDelete" title="Sil" disabled><i class="bi bi-trash3"></i></button>
+            <button type="button" class="tool-btn" id="refreshBtn" title="Yenile"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+
+        <!-- Mesaj listesi (sunucu tarafında oluşturulur) -->
+        <div class="msg-list" id="msgList">
+            @foreach (var m in messages)
+            {
+                var snippet = Snippet(m.MessageDetail);
+                var search = $"{m.SenderEmail} {m.SenderEmail} {m.Subject} {snippet}".ToLower(Tr);
+                var detailUrl = Url.Action("Detail", "Inbox", new { id = m.MessageId }) ?? $"/Inbox/Detail/{m.MessageId}";
+
+                <article class="msg-item @(m.IsRead ? "" : "unread")"
+                         data-id="@m.MessageId"
+                         data-href="@detailUrl"
+                         data-unread="@(m.IsRead ? "0" : "1")"
+                      @*    data-starred="@(m.IsStarred ? "1" : "0")"
+                         data-attach="@(m.AttachmentCount > 0 ? "1" : "0")"
+                         data-tag="@m.Label" *@
+                         data-search="@search"
+                         tabindex="0" title="Mesajı aç">
+                    <div class="lead">
+                        <input type="checkbox" class="m-check row-check" aria-label="Seç">
+                     @*    <button class="star-btn @(m.IsStarred ? "on" : "")" type="button" aria-label="Yıldızla">
+                            <i class="bi @(m.IsStarred ? "bi-star-fill" : "bi-star")"></i>
+                        </button> *@
+                    </div>
+                    <span class="avatar @AvatarColor(m.SenderEmail)">@Initials(m.SenderEmail)</span>
+                    <div class="mi-sender">
+                        <span class="sender">@m.SenderEmail</span>
+                        @if (!m.IsRead)
+                        {
+                            <span class="unread-dot"></span>
+                        }
+                    </div>
+                    <div class="mi-main">
+                        <span class="subject">@m.Subject</span>
+                        <span class="snippet">@snippet</span>
+                    </div>
+                    @* <div class="mi-meta">
+                        @if (!string.IsNullOrEmpty(m.Label))
+                        {
+                            <span class="tag @LabelClass(m.Label)">@m.Label</span>
+                        }
+                        @if (m.AttachmentCount > 0)
+                        {
+                            <i class="bi bi-paperclip attach-ic" title="@m.AttachmentCount ek"></i>
+                        }
+                    </div> *@
+                    <span class="time" title="@(m.SendDate.ToString("d MMMM yyyy, dddd HH:mm", Tr))">@ShortTime(m.SendDate)</span>
+                </article>
+            }
+
+            <!-- Gelen kutusu tamamen boşsa -->
+            <div class="empty-list" id="emptyInbox" hidden="@(messages.Any() ? "hidden" : null)">
+                <div class="ic"><i class="bi bi-inbox"></i></div>
+                <h6>Gelen kutunuz boş</h6>
+                <div>Yeni mesajlar geldiğinde burada listelenecek.</div>
+            </div>
+
+            <!-- Filtre / arama sonucu boşsa -->
+            <div class="empty-list" id="noResults" hidden>
+                <div class="ic"><i class="bi bi-search-heart"></i></div>
+                <h6>Sonuç bulunamadı</h6>
+                <div>Arama veya filtre kriterlerini değiştirmeyi deneyin.</div>
+            </div>
+        </div>
+
+        <!-- Sayfalama -->
+        <div class="list-foot">
+            <span class="range" id="rangeInfo"></span>
+            <div class="pager" id="pager"></div>
+        </div>
+    </div>
+
+</section>
+
+@section Scripts {
+    <script>
+        /* ======================================================================
+           GELEN KUTUSU — liste sunucudan gelir; filtreleme, arama, sayfalama,
+           seçim ve yıldız/okundu işlemleri tarayıcıda yapılır.
+           ====================================================================== */
+        (() => {
+            const { $, $$, showToast, setBadge } = window.Mailora;
+
+            /* Backend action'ları hazır olunca URL'leri girin (POST, AntiForgery token otomatik eklenir).
+               Boş bırakılırsa işlemler yalnızca arayüzde uygulanır.
+               Gönderilen alanlar: star → id, starred | read/unread/delete → ids (çoklu) */
+            const ENDPOINTS = {
+                star:   '',   // ör. '/Inbox/ToggleStar'
+                read:   '',   // ör. '/Inbox/MarkAsRead'
+                unread: '',   // ör. '/Inbox/MarkAsUnread'
+                delete: ''    // ör. '/Inbox/Delete'
+            };
+            const PER_PAGE = 10;
+
+            const params = new URLSearchParams(location.search);
+            const state = {
+                filter: ['all', 'unread', 'starred', 'attach'].includes(params.get('filter')) ? params.get('filter') : 'all',
+                label: params.get('label') || null,
+                query: params.get('q') || '',
+                page: 1,
+                selectedId: null,
+                checked: new Set()
+            };
+
+            const listEl = $('#msgList');
+            const norm = s => (s || '').toLocaleLowerCase('tr-TR');
+            const rows = () => $$('.msg-item', listEl).filter(r => !r.dataset.removed);
+            const rowId = r => +r.dataset.id;
+            const isOn = (r, key) => r.dataset[key] === '1';
+
+            /* --- Sunucuya istek --- */
+            function post(url, data) {
+                if (!url) return Promise.resolve();
+                const body = new URLSearchParams();
+                Object.entries(data).forEach(([k, v]) => [].concat(v).forEach(x => body.append(k, x)));
+                const token = $('input[name="__RequestVerificationToken"]');
+                if (token) body.append('__RequestVerificationToken', token.value);
+                return fetch(url, { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => { if (!r.ok) throw new Error(r.status); });
+            }
+
+            /* --- Filtreleme & sayfalama --- */
+            function matches(r) {
+                if (state.filter === 'unread' && !isOn(r, 'unread')) return false;
+                if (state.filter === 'starred' && !isOn(r, 'starred')) return false;
+                if (state.filter === 'attach' && !isOn(r, 'attach')) return false;
+                if (state.label && r.dataset.tag !== state.label) return false;
+                const q = norm(state.query.trim());
+                if (q && !r.dataset.search.includes(q)) return false;
+                return true;
+            }
+            const filtered = () => rows().filter(matches);
+            const pageCount = n => Math.max(1, Math.ceil(n / PER_PAGE));
+
+            function pageRows(all = filtered()) {
+                state.page = Math.min(Math.max(1, state.page), pageCount(all.length));
+                const start = (state.page - 1) * PER_PAGE;
+                return all.slice(start, start + PER_PAGE);
+            }
+
+            /* --- Ana çizim --- */
+            function render() {
+                const all = filtered();
+                const visible = new Set(pageRows(all));
+                const total = rows().length;
+
+                $$('.msg-item', listEl).forEach(r => {
+                    r.hidden = !visible.has(r);
+                    r.classList.toggle('selected', rowId(r) === state.selectedId);
+                    const checked = state.checked.has(rowId(r));
+                    r.classList.toggle('checked', checked);
+                    $('.row-check', r).checked = checked;
+                });
+
+                $('#emptyInbox').hidden = total > 0;
+                $('#noResults').hidden = total === 0 || all.length > 0;
+
+                // Sayaçlar
+                const unread = rows().filter(r => isOn(r, 'unread')).length;
+                const starred = rows().filter(r => isOn(r, 'starred')).length;
+                const sub = $('#inboxSub');
+                sub.textContent = `${total} mesaj${sub.dataset.email ? ' · ' + sub.dataset.email : ''}`;
+                $('#unreadPill').textContent = `${unread} okunmamış`;
+                setBadge('badgeInbox', unread);
+                setBadge('badgeStarred', starred);
+
+                renderPager(all);
+                renderChips();
+                updateBulkBar();
+            }
+
+            function renderPager(all) {
+                const pc = pageCount(all.length);
+                const start = all.length ? (state.page - 1) * PER_PAGE + 1 : 0;
+                const end = Math.min(state.page * PER_PAGE, all.length);
+                $('#rangeInfo').textContent = `${start}–${end} / ${all.length} mesaj`;
+
+                let html = `<button type="button" data-p="prev" ${state.page === 1 ? 'disabled' : ''} aria-label="Önceki"><i class="bi bi-chevron-left"></i></button>`;
+                for (let i = 1; i <= pc; i++) html += `<button type="button" data-p="${i}" class="${i === state.page ? 'active' : ''}">${i}</button>`;
+                html += `<button type="button" data-p="next" ${state.page === pc ? 'disabled' : ''} aria-label="Sonraki"><i class="bi bi-chevron-right"></i></button>`;
+                $('#pager').innerHTML = html;
+            }
+
+            function renderChips() {
+                const all = rows();
+                const c = {
+                    all: all.length,
+                    unread: all.filter(r => isOn(r, 'unread')).length,
+                    starred: all.filter(r => isOn(r, 'starred')).length,
+                    attach: all.filter(r => isOn(r, 'attach')).length
+                };
+                const chips = [['all', 'Tümü'], ['unread', 'Okunmamış'], ['starred', 'Yıldızlı'], ['attach', 'Ekli']];
+                let html = chips.map(([k, t]) =>
+                    `<button type="button" class="chip ${state.filter === k ? 'active' : ''}" data-filter="${k}">${t} <span class="n">${c[k]}</span></button>`
+                ).join('');
+                if (state.label) {
+                    html += `<button type="button" class="chip active" data-clear-label="1"><i class="bi bi-tag-fill"></i> ${window.Mailora.escapeHtml(state.label)} <i class="bi bi-x"></i></button>`;
+                }
+                $('#filterChips').innerHTML = html;
+            }
+
+            function updateBulkBar() {
+                const ids = pageRows().map(rowId);
+                const onPage = ids.filter(id => state.checked.has(id)).length;
+                const n = state.checked.size;
+                const all = $('#checkAll');
+                all.checked = ids.length > 0 && onPage === ids.length;
+                all.indeterminate = onPage > 0 && onPage < ids.length;
+                $('#selInfo').textContent = n ? `${n} mesaj seçildi` : 'Tümünü seç';
+                ['#bulkRead', '#bulkUnread', '#bulkDelete'].forEach(s => { $(s).disabled = !n; });
+            }
+
+            /* --- Satır durumları --- */
+            function setUnread(r, on) {
+                r.dataset.unread = on ? '1' : '0';
+                r.classList.toggle('unread', on);
+                const wrap = $('.mi-sender', r);
+                const dot = $('.unread-dot', wrap);
+                if (on && !dot) wrap.insertAdjacentHTML('beforeend', '<span class="unread-dot"></span>');
+                if (!on && dot) dot.remove();
+            }
+
+            function setStar(r, on) {
+                r.dataset.starred = on ? '1' : '0';
+                const btn = $('.star-btn', r);
+                btn.classList.toggle('on', on);
+                $('i', btn).className = `bi ${on ? 'bi-star-fill' : 'bi-star'}`;
+            }
+
+            /* --- İşlemler --- */
+            function toggleStar(r) {
+                const on = !isOn(r, 'starred');
+                const btn = $('.star-btn', r);
+                setStar(r, on);
+                btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+                render();
+                showToast(on ? 'Mesaj yıldızlandı.' : 'Yıldız kaldırıldı.', on ? 'bi-star-fill' : 'bi-star');
+                post(ENDPOINTS.star, { id: rowId(r), starred: on }).catch(() => {
+                    setStar(r, !on); render();
+                    showToast('İşlem kaydedilemedi.', 'bi-exclamation-circle');
+                });
+            }
+
+            function bulkMark(unread) {
+                const ids = [...state.checked];
+                const targets = rows().filter(r => state.checked.has(rowId(r)));
+                const before = targets.map(r => isOn(r, 'unread'));
+                targets.forEach(r => setUnread(r, unread));
+                state.checked.clear();
+                render();
+                showToast(`${ids.length} mesaj ${unread ? 'okunmadı' : 'okundu'} olarak işaretlendi.`, unread ? 'bi-envelope' : 'bi-envelope-open');
+                post(unread ? ENDPOINTS.unread : ENDPOINTS.read, { ids }).catch(() => {
+                    targets.forEach((r, i) => setUnread(r, before[i])); render();
+                    showToast('İşlem kaydedilemedi.', 'bi-exclamation-circle');
+                });
+            }
+
+            // Silme: 5 sn "Geri Al" imkânı, sonra sunucuya gönderilir
+            function deleteRows(ids) {
+                const targets = rows().filter(r => ids.includes(rowId(r)));
+                if (!targets.length) return;
+                targets.forEach(r => { r.dataset.removed = '1'; state.checked.delete(rowId(r)); });
+                render();
+
+                let undone = false;
+                showToast(targets.length > 1 ? `${targets.length} mesaj çöp kutusuna taşındı.` : 'Mesaj çöp kutusuna taşındı.', 'bi-trash3', {
+                    label: 'Geri Al',
+                    onClick: () => {
+                        undone = true;
+                        targets.forEach(r => delete r.dataset.removed);
+                        render();
+                        showToast('İşlem geri alındı.', 'bi-arrow-counterclockwise');
+                    }
+                });
+
+                setTimeout(() => {
+                    if (undone) return;
+                    post(ENDPOINTS.delete, { ids: targets.map(rowId) })
+                        .then(() => targets.forEach(r => r.remove()))
+                        .catch(() => {
+                            targets.forEach(r => delete r.dataset.removed); render();
+                            showToast('Mesajlar silinemedi.', 'bi-exclamation-circle');
+                        });
+                }, 5200);
+            }
+
+            function openRow(r) {
+                state.selectedId = rowId(r);
+                if (r.dataset.href) location.href = r.dataset.href;
+            }
+
+            /* --- Arama (liste + navbar senkron) --- */
+            const search = $('#listSearch');
+            const globalSearch = $('#globalSearch');
+
+            function setQuery(value, source) {
+                state.query = value;
+                state.page = 1;
+                if (source !== 'list') search.value = value;
+                if (source !== 'global' && globalSearch) globalSearch.value = value;
+                $('#listSearchWrap').classList.toggle('has-value', !!value);
+                render();
+            }
+
+            /* --- Olaylar --- */
+            search.addEventListener('input', e => setQuery(e.target.value, 'list'));
+            $('#listSearchClear').addEventListener('click', () => { setQuery('', 'clear'); search.focus(); });
+
+            $('#filterChips').addEventListener('click', e => {
+                const chip = e.target.closest('[data-filter]');
+                if (chip) { state.filter = chip.dataset.filter; state.page = 1; render(); return; }
+                if (e.target.closest('[data-clear-label]')) { state.label = null; state.page = 1; render(); }
+            });
+
+            $('#checkAll').addEventListener('change', e => {
+                pageRows().forEach(r => e.target.checked ? state.checked.add(rowId(r)) : state.checked.delete(rowId(r)));
+                render();
+            });
+
+            $('#bulkRead').addEventListener('click', () => bulkMark(false));
+            $('#bulkUnread').addEventListener('click', () => bulkMark(true));
+            $('#bulkDelete').addEventListener('click', () => deleteRows([...state.checked]));
+            $('#refreshBtn').addEventListener('click', e => {
+                const ic = $('i', e.currentTarget);
+                ic.style.transition = 'transform .6s';
+                ic.style.transform = 'rotate(360deg)';
+                setTimeout(() => location.reload(), 350);
+            });
+
+            $('#pager').addEventListener('click', e => {
+                const b = e.target.closest('button[data-p]');
+                if (!b || b.disabled) return;
+                const p = b.dataset.p;
+                state.page = p === 'prev' ? state.page - 1 : p === 'next' ? state.page + 1 : +p;
+                render();
+                listEl.scrollTop = 0;
+            });
+
+            listEl.addEventListener('click', e => {
+                const r = e.target.closest('.msg-item');
+                if (!r) return;
+                if (e.target.closest('.star-btn')) { e.stopPropagation(); toggleStar(r); return; }
+                if (e.target.closest('.row-check')) return;
+                openRow(r);
+            });
+
+            listEl.addEventListener('change', e => {
+                if (!e.target.classList.contains('row-check')) return;
+                const r = e.target.closest('.msg-item');
+                e.target.checked ? state.checked.add(rowId(r)) : state.checked.delete(rowId(r));
+                r.classList.toggle('checked', e.target.checked);
+                updateBulkBar();
+            });
+
+            listEl.addEventListener('keydown', e => {
+                const r = e.target.closest('.msg-item');
+                if (r && e.key === 'Enter' && !e.target.closest('input, button')) openRow(r);
+            });
+
+            // Klavye ile gezinme: j / ↓ sonraki, k / ↑ önceki, Enter aç
+            function moveCursor(dir) {
+                const list = filtered();
+                if (!list.length) return;
+                let i = list.findIndex(r => rowId(r) === state.selectedId);
+                i = i < 0 ? 0 : Math.min(list.length - 1, Math.max(0, i + dir));
+                state.selectedId = rowId(list[i]);
+                state.page = Math.floor(i / PER_PAGE) + 1;
+                render();
+                list[i].focus({ preventScroll: true });
+                list[i].scrollIntoView({ block: 'nearest' });
+            }
+
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+                if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1); }
+                if (e.key === 'k' || e.key === 'ArrowUp')   { e.preventDefault(); moveCursor(-1); }
+            });
+
+            /* --- Layout bağlantıları (navbar arama + sidebar etiketleri) --- */
+            window.Mailora.onSearch = value => setQuery(value, 'global');
+            window.Mailora.onLabel = label => { state.label = label; state.page = 1; render(); };
+
+            /* --- Başlangıç --- */
+            setQuery(state.query, 'init');
+        })();
+    </script>
+}

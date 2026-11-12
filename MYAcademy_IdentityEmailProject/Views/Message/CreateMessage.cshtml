@@ -1,0 +1,466 @@
+﻿@model MYAcademy_IdentityEmailProject.Entities.Message
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Yeni Mesaj";
+    ViewData["ActiveMenu"] = "compose";        // Sidebar'daki data-page="compose" / data-menu="compose" linkini aktif yapar
+    Layout = "~/Views/MessageLayout/Index.cshtml";
+
+    // Controller'da: ViewBag.Categories = List<SelectListItem>
+    var categories = ViewBag.Categories as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+
+    var userName = User.FindFirstValue(ClaimTypes.GivenName) ?? User.Identity?.Name ?? "";
+    var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "";
+
+    // Sunucu tarafı (ModelState) hataları
+    string ErrClass(string key) => ViewData.ModelState.TryGetValue(key, out var e) && e.Errors.Count > 0 ? "has-error" : "";
+    string? ErrText(string key) => ViewData.ModelState.TryGetValue(key, out var e) ? e.Errors.FirstOrDefault()?.ErrorMessage : null;
+    var generalError = ErrText(string.Empty);   // ModelState.AddModelError("", "...") ile eklenen genel hata
+}
+
+<style>
+    /* Kategori dropdown'u — compose satırlarıyla uyumlu sade görünüm */
+    .cmp-select-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .cmp-select {
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        font: inherit;
+        color: inherit;
+        padding: 6px 28px 6px 0;
+        cursor: pointer;
+    }
+
+        .cmp-select:invalid, .cmp-select option[value=""] {
+            color: var(--muted, #85899B);
+        }
+
+        .cmp-select option {
+            color: #303348;
+        }
+
+    .cmp-select-wrap .bi-chevron-down {
+        position: absolute;
+        right: 4px;
+        pointer-events: none;
+        color: var(--muted, #85899B);
+        font-size: .8rem;
+    }
+
+    .cmp-select-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent, #8B7FD6);
+        margin-right: 10px;
+        flex: none;
+        opacity: 0;
+        transition: opacity .2s;
+    }
+
+    .cmp-select-wrap.has-value .cmp-select-dot {
+        opacity: 1;
+    }
+</style>
+
+<section class="compose" id="compose">
+
+    <div class="cmp-head">
+        <div>
+            <h1>Yeni Mesaj</h1>
+            <p>Yeni bir e-posta oluşturun ve gönderin</p>
+        </div>
+        <div class="cmp-status" id="cmpStatus" data-state="empty" aria-live="polite">
+            <span class="sdot"></span><span class="stext">Yeni mesaj</span>
+        </div>
+    </div>
+
+    @* Controller adınız farklıysa asp-controller ekleyin: asp-controller="Message" *@
+    <form class="cmp-card" id="cmpForm" asp-action="Create" method="post" novalidate autocomplete="off">
+
+        <!-- Alıcı, kategori & konu -->
+        <div class="cmp-fields">
+            <div class="cmp-row">
+                <span class="cmp-label">Kimden</span>
+                <div class="cmp-from">
+                    <b>@userName</b>
+                    @if (!string.IsNullOrEmpty(userEmail))
+                    {
+                        <span>&lt;@userEmail&gt;</span>
+                    }
+                </div>
+            </div>
+
+            <div class="cmp-row @ErrClass(nameof(Model.ReceiverEmail))" id="rowTo">
+                <label class="cmp-label" asp-for="ReceiverEmail">Kime</label>
+                <input asp-for="ReceiverEmail" id="cmpTo" class="cmp-subject" type="email"
+                       placeholder="ornek@alanadi.com" maxlength="256" spellcheck="false" autocomplete="email">
+                <div class="cmp-err">@ErrText(nameof(Model.ReceiverEmail))</div>
+            </div>
+
+            <div class="cmp-row @ErrClass(nameof(Model.CategoryId))" id="rowCategory">
+                <label class="cmp-label" asp-for="CategoryId">Kategori</label>
+                <div class="cmp-select-wrap" id="cmpCategoryWrap">
+                    <span class="cmp-select-dot"></span>
+                    <select asp-for="CategoryId" asp-items="categories" id="cmpCategory" class="cmp-select" required>
+                        <option value="">Kategori seçin…</option>
+                    </select>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="cmp-err">@ErrText(nameof(Model.CategoryId))</div>
+            </div>
+
+            <div class="cmp-row @ErrClass(nameof(Model.Subject))" id="rowSubject">
+                <label class="cmp-label" asp-for="Subject">Konu</label>
+                <input asp-for="Subject" id="cmpSubject" class="cmp-subject" type="text"
+                       placeholder="Mesajınızın konusunu yazın..." maxlength="200">
+                <div class="cmp-err">@ErrText(nameof(Model.Subject))</div>
+            </div>
+        </div>
+
+        <!-- Rich text araç çubuğu -->
+        <div class="cmp-toolbar" id="cmpToolbar" role="toolbar" aria-label="Biçimlendirme">
+            <div class="tb-wrap">
+                <button type="button" class="tb-btn tb-select" data-pop="block" title="Başlık biçimi"><span id="tbBlockLabel">Paragraf</span><i class="bi bi-chevron-down"></i></button>
+                <div class="tb-pop tb-menu" data-pop-for="block">
+                    <button type="button" data-block="p">Paragraf</button>
+                    <button type="button" data-block="h1"><span class="bh1">Başlık 1</span></button>
+                    <button type="button" data-block="h2"><span class="bh2">Başlık 2</span></button>
+                    <button type="button" data-block="h3"><span class="bh3">Başlık 3</span></button>
+                    <button type="button" data-block="blockquote"><span class="bq">Alıntı</span></button>
+                </div>
+            </div>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb-btn" data-cmd="bold" title="Kalın (Ctrl+B)"><i class="bi bi-type-bold"></i></button>
+            <button type="button" class="tb-btn" data-cmd="italic" title="İtalik (Ctrl+I)"><i class="bi bi-type-italic"></i></button>
+            <button type="button" class="tb-btn" data-cmd="underline" title="Altı çizili (Ctrl+U)"><i class="bi bi-type-underline"></i></button>
+            <button type="button" class="tb-btn" data-cmd="strikeThrough" title="Üstü çizili"><i class="bi bi-type-strikethrough"></i></button>
+            <div class="tb-wrap">
+                <button type="button" class="tb-btn" data-pop="color" title="Metin rengi"><i class="bi bi-fonts"></i><span class="cbar" id="tbColorBar"></span></button>
+                <div class="tb-pop" data-pop-for="color">
+                    <div class="tb-colors">
+                        @foreach (var c in new[] { "#303348", "#85899B", "#8B7FD6", "#5A4FB0", "#4A7CC2", "#3E9A77", "#B88A12", "#C8774A", "#C2476B", "#E07597" })
+                        {
+                            <button type="button" class="sw" data-color="@c" style="background:@c" title="@c"></button>
+                        }
+                    </div>
+                    <button type="button" class="tb-reset" data-color="#45485E"><i class="bi bi-arrow-counterclockwise"></i> Varsayılan renk</button>
+                </div>
+            </div>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="Madde işaretli liste"><i class="bi bi-list-ul"></i></button>
+            <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="Numaralı liste"><i class="bi bi-list-ol"></i></button>
+            <div class="tb-wrap">
+                <button type="button" class="tb-btn" data-pop="link" title="Bağlantı ekle"><i class="bi bi-link-45deg"></i></button>
+                <div class="tb-pop tb-link" data-pop-for="link">
+                    <div class="ttl">Bağlantı ekle</div>
+                    <div class="r">
+                        <input type="text" id="tbLinkInput" placeholder="https://ornek.com" spellcheck="false">
+                        <button type="button" class="btn-mini" data-link="add">Ekle</button>
+                    </div>
+                    <button type="button" class="unl" data-link="remove"><i class="bi bi-link-45deg"></i> Bağlantıyı kaldır</button>
+                </div>
+            </div>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb-btn" data-cmd="justifyLeft" title="Sola hizala"><i class="bi bi-text-left"></i></button>
+            <button type="button" class="tb-btn" data-cmd="justifyCenter" title="Ortala"><i class="bi bi-text-center"></i></button>
+            <button type="button" class="tb-btn" data-cmd="justifyRight" title="Sağa hizala"><i class="bi bi-text-right"></i></button>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb-btn" data-cmd="removeFormat" title="Biçimlendirmeyi temizle"><i class="bi bi-eraser"></i></button>
+            <div class="tb-end">
+                <button type="button" class="tb-btn" data-cmd="undo" title="Geri al (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button type="button" class="tb-btn" data-cmd="redo" title="Yinele (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+        </div>
+
+        <!-- Editör (HTML içerik gizli Content alanına yazılır) -->
+        <div class="cmp-editor-wrap @ErrClass(nameof(Model.MessageDetail))" id="rowBody">
+            <div class="cmp-editor" id="cmpEditor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Mesaj içeriği"
+                 data-placeholder="Merhaba, mesajınızı buraya yazmaya başlayın…">
+                @Html.Raw(Model?.MessageDetail)
+            </div>
+            <input type="hidden" asp-for="MessageDetail" id="cmpContent">
+            <div class="cmp-counter" id="cmpCounter">0 kelime · 0 karakter</div>
+            <div class="cmp-err">@ErrText(nameof(Model.MessageDetail))</div>
+        </div>
+
+        <!-- Alt işlem çubuğu -->
+        <div class="cmp-actions">
+            <button type="submit" class="btn-send" id="cmpSend"><span class="lbl"><i class="bi bi-send-fill"></i> Mesajı Gönder</span></button>
+            <button type="button" class="btn-soft danger" id="cmpClear"><i class="bi bi-x-circle"></i> Temizle</button>
+            <span class="cmp-hint"><span class="kbd-s">Ctrl</span> + <span class="kbd-s">Enter</span> ile gönder</span>
+        </div>
+    </form>
+
+    <!-- Temizleme onay penceresi -->
+    <div class="cmp-dialog" id="cmpDialog" hidden>
+        <div class="cd-card" role="alertdialog" aria-modal="true" aria-labelledby="cdTitle">
+            <div class="cd-ic"><i class="bi bi-exclamation-triangle"></i></div>
+            <h5 id="cdTitle">Formu temizlemek istiyor musunuz?</h5>
+            <p>Alıcı, kategori, konu ve mesaj içeriği silinecek.</p>
+            <div class="cd-actions">
+                <button type="button" class="btn-soft" data-dialog="cancel">Vazgeç</button>
+                <button type="button" class="btn-soft danger-solid" data-dialog="ok"><i class="bi bi-trash3"></i> Evet, Temizle</button>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+@section Scripts {
+    <script>
+        /* ======================================================================
+           YENİ MESAJ — form normal POST ile gönderilir (asp-action="Create").
+           JS: zengin metin editörü, istemci doğrulaması, Ctrl+Enter, temizle onayı.
+           ====================================================================== */
+        (() => {
+            const { $, $$, showToast } = window.Mailora;
+
+            const EMAIL_RE = /^[^\s@@<>()[\],;:"]+@@[^\s@@<>()[\],;:"]+\.[a-z]{2,}$/i;
+            const STATE_CMDS = ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'justifyLeft', 'justifyCenter', 'justifyRight'];
+            const BLOCK_LABELS = { p: 'Paragraf', div: 'Paragraf', h1: 'Başlık 1', h2: 'Başlık 2', h3: 'Başlık 3', blockquote: 'Alıntı' };
+
+            const form = $('#cmpForm'), editor = $('#cmpEditor'), content = $('#cmpContent');
+            const to = $('#cmpTo'), category = $('#cmpCategory'), subject = $('#cmpSubject');
+            let savedRange = null, dirty = false, sending = false;
+
+            const textOf = html => { const d = document.createElement('div'); d.innerHTML = html || ''; return (d.textContent || '').trim(); };
+            const escapeHtml = window.Mailora.escapeHtml;
+
+            /* --- Durum göstergesi --- */
+            function updateStatus() {
+                const el = $('#cmpStatus');
+                const empty = !to.value.trim() && !category.value && !subject.value.trim() && !textOf(editor.innerHTML);
+                const state = sending ? 'saving' : empty ? 'empty' : 'dirty';
+                el.dataset.state = state;
+                $('.stext', el).textContent = { empty: 'Yeni mesaj', dirty: 'Gönderilmedi', saving: 'Gönderiliyor…' }[state];
+            }
+            function markDirty() { dirty = true; updateStatus(); }
+
+            /* --- Hata gösterimi --- */
+            function setFieldError(row, msg) {
+                row.classList.add('has-error');
+                $('.cmp-err', row).textContent = msg;
+                row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake');
+            }
+            function clearFieldError(row) {
+                if (!row || !row.classList.contains('has-error')) return;
+                row.classList.remove('has-error');
+                $('.cmp-err', row).textContent = '';
+            }
+
+            /* --- Editör --- */
+            try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, true); } catch (e) { /* eski tarayıcı */ }
+
+            function syncContent() {
+                if (['<br>', '<p><br></p>', '<div><br></div>'].includes(editor.innerHTML.trim())) editor.innerHTML = '';
+                content.value = editor.innerHTML;
+            }
+
+            function updateCounter() {
+                const text = editor.innerText.replace(/ /g, ' ').trim();
+                const words = text ? text.split(/\s+/).length : 0;
+                $('#cmpCounter').textContent = `${words.toLocaleString('tr-TR')} kelime · ${text.length.toLocaleString('tr-TR')} karakter`;
+            }
+
+            editor.addEventListener('input', () => { syncContent(); updateCounter(); clearFieldError($('#rowBody')); markDirty(); });
+            editor.addEventListener('paste', e => {      // dışarıdan gelen biçimleri temizle
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                e.preventDefault();
+                document.execCommand('insertText', false, text);
+            });
+
+            function saveSelection() {
+                const sel = window.getSelection();
+                if (sel.rangeCount && editor.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange();
+            }
+            function restoreSelection() {
+                if (savedRange && editor.contains(savedRange.startContainer)) {
+                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange);
+                }
+            }
+
+            function exec(cmd, value = null) {
+                editor.focus();
+                restoreSelection();
+                document.execCommand(cmd, false, value);
+                if (cmd === 'removeFormat') { document.execCommand('unlink'); document.execCommand('formatBlock', false, '<p>'); }
+                saveSelection();
+                syncContent(); updateCounter(); clearFieldError($('#rowBody')); markDirty(); updateToolbarState();
+            }
+
+            function insertLink() {
+                const input = $('#tbLinkInput');
+                const raw = input.value.trim();
+                if (!raw) { input.focus(); return; }
+                const url = /^(https?:|mailto:)/i.test(raw) ? raw : (EMAIL_RE.test(raw) ? 'mailto:' : 'https://') + raw;
+                editor.focus(); restoreSelection();
+                const sel = window.getSelection();
+                if (!sel.rangeCount || sel.isCollapsed || !editor.contains(sel.anchorNode)) {
+                    document.execCommand('insertHTML', false, `<a href="${escapeHtml(url)}">${escapeHtml(raw)}</a>&nbsp;`);
+                } else {
+                    document.execCommand('createLink', false, url);
+                }
+                input.value = '';
+                closePops(); saveSelection();
+                syncContent(); updateCounter(); clearFieldError($('#rowBody')); markDirty();
+            }
+
+            function updateToolbarState() {
+                const tb = $('#cmpToolbar');
+                const sel = window.getSelection();
+                const inEditor = sel.rangeCount > 0 && editor.contains(sel.anchorNode);
+                STATE_CMDS.forEach(c => {
+                    let on = false;
+                    if (inEditor) { try { on = document.queryCommandState(c); } catch (e) { on = false; } }
+                    $(`[data-cmd="${c}"]`, tb)?.classList.toggle('active', on);
+                });
+                let block = '';
+                if (inEditor) { try { block = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, ''); } catch (e) { block = ''; } }
+                $('#tbBlockLabel').textContent = BLOCK_LABELS[block] || 'Paragraf';
+            }
+
+            function togglePop(name, btn) {
+                const pop = $(`[data-pop-for="${name}"]`);
+                const willOpen = !pop.classList.contains('show');
+                closePops();
+                if (!willOpen) return;
+                pop.classList.add('show');
+                btn.classList.add('open');
+                pop.style.left = '0px';                                   // ekran dışına taşmayı engelle
+                const over = pop.getBoundingClientRect().right - (window.innerWidth - 12);
+                if (over > 0) pop.style.left = `${-over}px`;
+                if (name === 'link') setTimeout(() => $('#tbLinkInput').focus(), 30);
+            }
+            function closePops() {
+                $$('.tb-pop.show').forEach(p => p.classList.remove('show'));
+                $$('.tb-btn.open').forEach(b => b.classList.remove('open'));
+            }
+
+            const tb = $('#cmpToolbar');
+            tb.addEventListener('mousedown', e => { if (e.target.closest('button') && !e.target.closest('.tb-link .r')) e.preventDefault(); });
+            tb.addEventListener('click', e => {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                if (btn.dataset.cmd) { closePops(); exec(btn.dataset.cmd); }
+                else if (btn.dataset.pop) togglePop(btn.dataset.pop, btn);
+                else if (btn.dataset.block) { exec('formatBlock', `<${btn.dataset.block}>`); closePops(); }
+                else if (btn.dataset.color) { exec('foreColor', btn.dataset.color); $('#tbColorBar').style.background = btn.dataset.color; closePops(); }
+                else if (btn.dataset.link === 'add') insertLink();
+                else if (btn.dataset.link === 'remove') { exec('unlink'); closePops(); }
+            });
+            $('#tbLinkInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); insertLink(); } });
+
+            document.addEventListener('selectionchange', () => { saveSelection(); updateToolbarState(); });
+            document.addEventListener('mousedown', e => { if (!e.target.closest('.tb-wrap')) closePops(); });
+
+            /* --- Alıcı / Kategori / Konu --- */
+            to.addEventListener('input', () => { clearFieldError($('#rowTo')); markDirty(); });
+            to.addEventListener('blur', () => {
+                const v = to.value.trim();
+                to.value = v;
+                if (v && !EMAIL_RE.test(v)) setFieldError($('#rowTo'), 'Geçerli bir e-posta adresi girin (ör. ad@@alanadi.com).');
+            });
+            to.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); category.focus(); } });
+
+            const syncCategory = () => $('#cmpCategoryWrap').classList.toggle('has-value', !!category.value);
+            category.addEventListener('change', () => { syncCategory(); clearFieldError($('#rowCategory')); markDirty(); });
+
+            subject.addEventListener('input', () => { clearFieldError($('#rowSubject')); markDirty(); });
+            subject.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); editor.focus(); } });
+
+            /* --- Doğrulama & gönderim --- */
+            function validate() {
+                let first = null;
+                const fail = (row, msg, el) => { setFieldError(row, msg); if (!first) first = el; };
+                const email = to.value.trim();
+
+                if (!email) fail($('#rowTo'), 'Alıcı e-posta adresini girin.', to);
+                else if (!EMAIL_RE.test(email)) fail($('#rowTo'), 'Geçerli bir e-posta adresi girin (ör. ad@@alanadi.com).', to);
+                if (!category.value) fail($('#rowCategory'), 'Lütfen bir kategori seçin.', category);
+                if (!subject.value.trim()) fail($('#rowSubject'), 'Konu alanı boş bırakılamaz.', subject);
+                if (!textOf(editor.innerHTML)) fail($('#rowBody'), 'Mesaj içeriği boş olamaz.', editor);
+
+                if (first) { first.focus(); return false; }
+                return true;
+            }
+
+            form.addEventListener('submit', e => {
+                closePops();
+                to.value = to.value.trim();
+                syncContent();
+                if (sending) { e.preventDefault(); return; }
+                if (!validate()) { e.preventDefault(); showToast('Lütfen işaretli alanları kontrol edin.', 'bi-exclamation-circle'); return; }
+
+                sending = true; dirty = false;
+                const btn = $('#cmpSend');
+                btn.disabled = true;
+                $('.lbl', btn).innerHTML = '<span class="spin"></span> Gönderiliyor…';
+                updateStatus();
+                // Form normal şekilde POST edilir → Controller'daki Create(CreateMessageViewModel model)
+            });
+
+            /* --- Temizle (onaylı) --- */
+            const dialog = $('#cmpDialog');
+            const openClear = () => {
+                const empty = !to.value.trim() && !category.value && !subject.value.trim() && !textOf(editor.innerHTML);
+                if (empty) { showToast('Form zaten boş.', 'bi-info-circle'); return; }
+                dialog.hidden = false;
+                $('[data-dialog="cancel"]', dialog).focus();
+            };
+            const closeClear = () => { dialog.hidden = true; };
+
+            $('#cmpClear').addEventListener('click', openClear);
+            dialog.addEventListener('click', e => {
+                const act = e.target.closest('[data-dialog]')?.dataset.dialog;
+                if (act === 'ok') {
+                    to.value = ''; category.value = ''; subject.value = ''; editor.innerHTML = '';
+                    syncContent(); syncCategory(); updateCounter();
+                    ['#rowTo', '#rowCategory', '#rowSubject', '#rowBody'].forEach(s => clearFieldError($(s)));
+                    dirty = false; savedRange = null;
+                    closeClear(); updateStatus();
+                    showToast('Form temizlendi.', 'bi-eraser');
+                    to.focus();
+                } else if (act === 'cancel' || e.target === dialog) closeClear();
+            });
+
+            /* --- Kısayollar --- */
+            $('#compose').addEventListener('keydown', e => {
+                const mod = e.ctrlKey || e.metaKey;
+                if (mod && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
+                if (e.key === 'Escape') { closePops(); closeClear(); }
+            });
+
+            // Kaydedilmemiş içerikle sayfadan çıkarken uyar
+            window.addEventListener('beforeunload', e => { if (dirty && !sending) { e.preventDefault(); e.returnValue = ''; } });
+
+            /* --- Başlangıç --- */
+            syncContent();
+            syncCategory();
+            updateCounter();
+            updateStatus();
+            dirty = false;
+
+            const generalError = @Json.Serialize(generalError);
+            if (generalError) showToast(escapeHtml(generalError), 'bi-exclamation-circle');
+
+            // İlk hatalı alana ya da boş alana odaklan
+            const firstErr = $('#compose .has-error input, #compose .has-error select, #compose .has-error .cmp-editor');
+            if (firstErr) firstErr.focus();
+            else if (window.innerWidth >= 768) (!to.value ? to : !category.value ? category : !subject.value ? subject : editor).focus();
+        })();
+    </script>
+}
+
+
