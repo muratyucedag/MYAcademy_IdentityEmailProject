@@ -1,0 +1,60 @@
+﻿<!-- =====================================================================
+        SHARED NAVBAR
+        ASP.NET Core MVC: Views/Shared/_Navbar.cshtml (partial) — _Layout.cshtml içinde
+        Kullanıcı adı ileride User.Identity.Name ile doldurulacak.
+        ===================================================================== -->
+<header class="app-navbar">
+    <button class="nav-toggle" id="sidebarToggle" type="button" aria-label="Menüyü daralt / genişlet" title="Menüyü daralt"><i class="bi bi-list"></i></button>
+
+    <div class="global-search">
+        <i class="bi bi-search"></i>
+        <input type="search" id="globalSearch" placeholder="Mesajlarda, kişilerde ara…" autocomplete="off">
+        <span class="kbd">Ctrl K</span>
+    </div>
+
+    <div class="nav-actions">
+        <button class="icon-btn hide-xs" type="button" title="Yardım"><i class="bi bi-question-circle"></i></button>
+
+        <div class="dropdown">
+            <button class="icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Bildirimler">
+                <i class="bi bi-bell"></i><span class="pip"></span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end notif-menu">
+                <div class="d-flex justify-content-between align-items-center px-2 pt-1 pb-2">
+                    <strong style="font-size:14px">Bildirimler</strong>
+                    <span class="tag tag-is">3 yeni</span>
+                </div>
+                <div class="notif-item"><div class="ni av-lav"><i class="bi bi-envelope"></i></div><div><div class="nt">Ayşe Demir size mesaj gönderdi</div><div class="nd">5 dakika önce</div></div></div>
+                <div class="notif-item"><div class="ni av-mint"><i class="bi bi-calendar-check"></i></div><div><div class="nt">Sprint toplantısı 14:00'te başlıyor</div><div class="nd">30 dakika önce</div></div></div>
+                <div class="notif-item"><div class="ni av-blue"><i class="bi bi-shield-check"></i></div><div><div class="nt">Yeni cihazdan giriş yapıldı</div><div class="nd">Dün, 22:14</div></div></div>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="avatar sm av-user" data-user="avatar">AY</span>
+                <span class="meta">
+                    <span class="name d-block" data-user="fullName">Ahmet Yılmaz</span>
+                    <span class="role d-block">Premium Hesap</span>
+                </span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li class="dd-head">
+                    <span class="avatar av-user" data-user="avatar">AY</span>
+                    <div style="min-width:0">
+                        <div style="font-weight:700" data-user="fullName">Ahmet Yılmaz</div>
+                        <div style="font-size:12.5px;color:var(--muted)" data-user="email">ahmet.yilmaz@mailora.com</div>
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" data-page="profile" href="#profile"><i class="bi bi-person"></i> Profilim</a></li>
+                <li><a class="dropdown-item" data-page="settings" href="#settings"><i class="bi bi-gear"></i> Ayarlar</a></li>
+                <li><a class="dropdown-item" href="#" onclick="showToast('Tema seçenekleri yakında eklenecek.','bi-palette');return false;"><i class="bi bi-moon-stars"></i> Görünüm</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item danger" href="#" onclick="showToast('Çıkış işlemi Identity entegrasyonuyla eklenecek.','bi-box-arrow-right');return false;"><i class="bi bi-box-arrow-right"></i> Çıkış Yap</a></li>
+            </ul>
+        </div>
+    </div>
+</header>
+<!-- /SHARED NAVBAR -->
