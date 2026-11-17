@@ -9,6 +9,13 @@ builder.Services.AddIdentity<AppUser, IdentityRole>().AddEntityFrameworkStores<E
 
 builder.Services.AddDbContext<EmailContext>();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Login/SignIn";
+    options.AccessDeniedPath = "/ErrorPages/Page403";
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+});
+
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -26,6 +33,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

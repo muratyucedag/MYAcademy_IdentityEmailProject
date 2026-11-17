@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using MYAcademy_IdentityEmailProject.Context;
@@ -10,9 +11,11 @@ namespace MYAcademy_IdentityEmailProject.Controllers
     public class MessageController : Controller
     {
         private readonly EmailContext _context;
-        public MessageController(EmailContext context)
+        private readonly UserManager<AppUser> _userManager;
+        public MessageController(EmailContext context, UserManager<AppUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
         public IActionResult Inbox()
         {
@@ -30,6 +33,14 @@ namespace MYAcademy_IdentityEmailProject.Controllers
         public IActionResult CreateMessage(Message message)
         {
             return RedirectToAction("Sendbox");
+        }
+
+        [Authorize]
+        public async Task<IActionResult> Sendbox()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var values = _context.Messages.Where(x => x.SenderEmail == user.Email).OrderByDescending(x => x.SendDate).ToList();
+            return View(values);
         }
     }
 }
